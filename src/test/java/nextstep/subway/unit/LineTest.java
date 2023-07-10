@@ -4,8 +4,6 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
-import nextstep.subway.applicaion.LineService;
-import nextstep.subway.applicaion.dto.StationResponse;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -25,11 +23,14 @@ class LineTest {
      * 그렇다면 방법은?
      * 인수테스트(사용자 요구사항 입장)이기 때문에 요청은 API로 호출하는 방식으로 하는게 맞아보인다.
      * 구간 조회 했는데 거리도 같이 알 수 있어야 올바른 테스트가 아닐까?
+     *
+     * 값이 셋팅되지 않은 상황에서 값으로 테스트를 하는 것은 의미가 없지 않을까? -> line이라는 없는 값으로 셋팅을 해야 될 때 어떻게 해?
+     * 아니면 값을 직접 셋팅해주고 그 값에 맞게 테스트를 해야하는 걸까? stub을 사용하면 약속된 테스트를 할 수 있다.
      */
     @Test
     void addSection() {
         // given
-        Long lineId = 1L;
+        long lineId = 1L;
         Map<String, Object> parameter = new HashMap<>();
         parameter.put("upStationId", 1L);
         parameter.put("downStationId", 2L);
@@ -42,16 +43,18 @@ class LineTest {
                 .body(parameter)
                 .post("/lines/" + lineId + "/sections")
                 .then().log().all().extract();
-
         Assertions.assertThat(extract.statusCode()).isEqualTo(HttpStatus.OK.value());
 
         // then
-        LineService lineService = new LineService();
-        List<StationResponse> stations = lineService.findById(1L).getStations();
+        ExtractableResponse<Response> stations = RestAssured.given().log().all()
+                .when()
+                .get("/lines/" + lineId)
+                .then().log().all().extract();
 
         // then
-        Assertions.assertThat(stations.stream().map(StationResponse::getName)).containsAnyOf(upStation.getName());
-        Assertions.assertThat(stations.stream().map(StationResponse::getName)).containsAnyOf(downStation.getName());
+        List<Long> names = stations.jsonPath().getList("id");
+        Assertions.assertThat(names).containsAnyOf(1L);
+        Assertions.assertThat(names).containsAnyOf(2L);
     }
 
     @Test
